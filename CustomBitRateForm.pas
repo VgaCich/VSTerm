@@ -30,10 +30,10 @@ constructor TCustomBitRateForm.Create(AParent: TWinControl);
 begin
   inherited Create(AParent, 'Custom bitrate');
   BorderStyle := bsToolWindow;
-  SetSize(200 + Width - Clientwidth, 35 + Height - ClientHeight);
+  SetSize(200 + Width - ClientWidth, 35 + Height - ClientHeight);
   Position := poScreenCenter;
   OnKeyUp := FormKeyUp;
-  Self.OnShow := FormShow;
+  OnShow := FormShow;
   EBitRate := TEdit.Create(Self, '');
   EBitRate.SetBounds(5, (ClientHeight - EBitRate.Height) div 2, 130, EBitRate.Height);
   EBitRate.OnKeyUp := FormKeyUp;
