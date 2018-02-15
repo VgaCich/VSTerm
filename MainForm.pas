@@ -79,7 +79,6 @@ type
     procedure WMSetFocus(var Msg: TWMSetFocus); message WM_SETFOCUS;
   public
     constructor Create;
-    procedure SetCustomBitRate(const Value: string);
   end;
 
 var
@@ -87,16 +86,13 @@ var
 
 implementation
 
-uses
-  CustomBitRateForm;
-
 const
   CaptionRecv = 'Recv: ';
   CaptionSend = 'Send: ';
   AboutCaption = 'About ';
   CRLF = #13#10;
   AboutText = 'VgaSoft Terminal 2.0 alpha'+CRLF+CRLF+
-              'Copyright '#169' VgaSoft, 2013-2015'+CRLF+
+              'Copyright '#169' VgaSoft, 2013-2018'+CRLF+
               'vgasoft@gmail.com';
   AboutIcon = 'MAINICON';
   BitRatesList: array[0..15] of TSettingsItem = (
@@ -293,13 +289,6 @@ begin
   FillComboBox(CBRecvMode, RecvTextModeList, DefaultRecvTextMode);
 end;
 
-procedure TMainForm.SetCustomBitRate(const Value: string);
-begin
-  CBBitRate.TagEx := Value;
-  if Assigned(COMPort) then
-    COMPort.BitRate := GetComboValue(CBBitRate);
-end;
-
 procedure TMainForm.BtnConnectClick(Sender: TObject);
 begin
   if Assigned(COMPort)
@@ -318,11 +307,19 @@ begin
 end;
 
 procedure TMainForm.CBBitRateChange(Sender: TObject);
+var
+  Bitrate: string;
 begin
   if CBBitRate.ItemIndex = CBBitRate.ItemCount - 1 then
-    FormCustomBitRate.Show(CBBitRate.TagEx)
-  else if Assigned(COMPort) then
-    COMPort.BitRate := GetComboValue(Sender as TComboBoxEx);
+  begin
+    Bitrate := CBBitRate.TagEx;
+    if InputQuery(Handle, Caption, 'Bitrate:', Bitrate) then
+      CBBitRate.TagEx := Bitrate
+    else
+      Exit;
+  end;
+  if Assigned(COMPort) then
+    COMPort.BitRate := GetComboValue(CBBitRate);
 end;
 
 procedure TMainForm.CBDataBitsChange(Sender: TObject);
