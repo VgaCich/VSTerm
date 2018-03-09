@@ -1,5 +1,7 @@
 unit MainForm;
 
+{.$DEFINE DEBUG_LOOPBACK}
+
 interface
 
 uses
@@ -136,6 +138,7 @@ const
   SendTextModeList: array[TTextMode] of TSettingsItem = (
     (Name: 'Disable'; Value: Integer(tmDisable)),
     (Name: 'ASCII'; Value: Integer(tmASCII)),
+    (Name: 'ASCII C-style'; Value: Integer(tmASCIIC)),
     (Name: 'ASCII+LF'; Value: Integer(tmASCIILF)),
     (Name: 'ASCII+CR'; Value: Integer(tmASCIICR)),
     (Name: 'ASCII+CRLF'; Value: Integer(tmASCIICRLF)),
@@ -370,12 +373,24 @@ var
   List: TStringList;
   S: string;
 begin
-  if not Assigned(COMPort) then Exit;
   if Key = VK_RETURN then
   begin
+    {$IFNDEF DEBUG_LOOPBACK}
+    if not Assigned(COMPort) then Exit;
+    {$ENDIF}
     S := CBSend.Text;
     CBSend.Text := '';
     TermLog.Add(S, CaptionSend, clGreen, Now);
+    {$IFDEF DEBUG_LOOPBACK}
+    if not Assigned(COMPort) then
+    begin
+      SetLogUpdateState(true);
+      ReceiveConverter.Convert(TransmitConvert(S, TTextMode(GetComboValue(CBSendMode))));
+      ReceiveConverter.Flush;
+      SetLogUpdateState(false);
+    end
+    else
+    {$ENDIF}
     COMPort.Write(TransmitConvert(S, TTextMode(GetComboValue(CBSendMode))));
     if Trim(S) = '' then Exit;
     List := TStringList.Create;
@@ -389,7 +404,9 @@ begin
     CBSend.Clear;
     for i := 0 to Min(List.Count - 1, MaxHistory) do
       CBSend.ItemAdd(List[i]);
-  end;
+  end
+  else if Key = VK_ESCAPE then
+    CBSend.Text := '';
 end;
 
 procedure TMainForm.CBStopBitsChange(Sender: TObject);

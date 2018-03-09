@@ -25,7 +25,7 @@ const IDComboBoxEx = $CBBE;
 
 function EditHookProc(hWnd: THandle; Msg: UINT; wParam, lParam: Longint): Longint; stdcall;
 begin
-  if (Msg = WM_KEYUP) and (wParam = VK_RETURN) then
+  if (Msg = WM_KEYUP) and (wParam in [VK_RETURN, VK_ESCAPE]) then
     SendMessage(GetWindowLong(hWnd, GWL_HWNDPARENT), Msg, wParam, lParam);
   Result := CallWindowProc(Pointer(GetWindowLong(hWnd, GWL_USERDATA)), hWnd, Msg, wParam, lParam);
 end;
