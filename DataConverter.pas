@@ -46,20 +46,6 @@ begin
 end;
 
 function ParseBackslash(const S: string): string;
-const
-  Codes: array[0..11] of record Code, Replace: Char end = (
-    (Code: '\'; Replace: '\'),
-    (Code: '"'; Replace: '"'),
-    (Code: ''''; Replace: ''''),
-    (Code: '?'; Replace: '?'),
-    (Code: 'n'; Replace: #10),
-    (Code: 'r'; Replace: #13),
-    (Code: 'b'; Replace: #8),
-    (Code: 't'; Replace: #9),
-    (Code: 'f'; Replace: #12),
-    (Code: 'a'; Replace: #7),
-    (Code: 'v'; Replace: #11),
-    (Code: 'e'; Replace: #27));
 var
   i, j: Integer;
   c: Byte;
