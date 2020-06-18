@@ -8,12 +8,13 @@ uses
 type
   TTermLog = class(TRichEdit)
   private
-    FShowCaptions: Boolean;
+    FShowCaptions, FUpdated: Boolean;
     function GetCount: Integer;
   public
     constructor Create(AParent: TWinControl);
     procedure Add(Text, Caption: string; Color: TColor; Time: TDateTime);
     procedure Insert(const Line: string; Index: Integer);
+    procedure ResetUpdates;
     procedure Refresh;
     property Count: Integer read GetCount;
     property ShowCaptions: Boolean read FShowCaptions write FShowCaptions;
@@ -26,6 +27,7 @@ var
   i: Integer;
   Format: TCharFormat;
 begin
+  FUpdated := true;
   for i := 1 to Length(Text) do
     if Text[i] in [#$00, #$09, #$0A, #$0B, #$0D, #$AD] then
       Text[i] := #$20;
@@ -64,6 +66,7 @@ var
   Fmt: PChar;
   Str: string;
 begin
+  FUpdated := true;
   if Index >= 0 then
   begin
     Selection.cpMin := Perform(EM_LINEINDEX, Index, 0);
@@ -99,6 +102,7 @@ begin
   Format.bPitchAndFamily := FIXED_PITCH;
   Format.szFaceName := 'Courier New';
   Perform(EM_SETCHARFORMAT, 0, LPARAM(@Format));
+  FUpdated := true;
 end;
 
 function TTermLog.GetCount: Integer;
@@ -108,8 +112,14 @@ begin
     Dec(Result);
 end;
 
+procedure TTermLog.ResetUpdates;
+begin
+  FUpdated := false;
+end;
+
 procedure TTermLog.Refresh;
 begin
+  if not FUpdated then Exit;
   Invalidate;
   UpdateWindow(Handle);
 end;

@@ -5,7 +5,8 @@ unit MainForm;
 interface
 
 uses
-  Windows, Messages, AvL, avlUtils, avlCOMPort, avlSettings, DataConverter, TermLog, ComboBoxEx;
+  Windows, Messages, AvL, avlUtils, avlCOMPort, avlSettings, DataConverter,
+  Plugins, TermLog, ComboBoxEx;
 
 type
   TSettingsItem = record
@@ -15,7 +16,6 @@ type
   TSettingsItems = array[0..MaxInt div SizeOf(TSettingsItem) - 1] of TSettingsItem;
   PSettingsItems = ^TSettingsItems;
   TMainForm = class(TForm)
-  private
     TermLog: TTermLog;
     CBPort: TComboBoxEx;
     CBBitRate: TComboBoxEx;
@@ -34,14 +34,17 @@ type
     CBMute: TCheckBox;
     CBFlowCtrl: TComboBoxEx;
     CBSend: TComboBoxEx;
+    RecvTimer: TTimer;
+  private
     MenuLog: TMenu;
     MenuSettings: TMenu;
-    RecvTimer: TTimer;
+    MenuPlugins: TMenu;
     AccelTable: HAccel;
     COMPort: TCOMPort;
     ReceiveConverter: TReceiveConverter;
+    Plugins: TPluginsManager;
     MinWidth, MinHeight: Integer;
-    FLogUpdateState, FLogUpdated: Boolean;
+    FLogUpdateState: Boolean;
     FDumpFile: TFileStream;
     procedure BtnConnectClick(Sender: TObject);
     procedure BtnTogglePanelsClick(Sender: TObject);
@@ -72,7 +75,6 @@ type
     procedure SetLogUpdateState(IsUpdating: Boolean);
     procedure FillComboBox(Combo: TComboBoxEx; const Settings: array of TSettingsItem; DefItem: Integer = 0);
     function GetComboValue(Combo: TComboBoxEx; Index: Integer = -MaxInt): Integer;
-    function GetSettings: TSettings;
     procedure LoadSettings;
     procedure SaveSettings;
     procedure WMCommand(var Msg: TWMCommand); message WM_COMMAND;
@@ -84,7 +86,9 @@ type
   end;
 
 var
-  FormMain: TMainForm;
+  FormMain: TMainForm = nil;
+
+function GetSettings: TSettings;
 
 implementation
 
@@ -94,7 +98,7 @@ const
   AboutCaption = 'About ';
   CRLF = #13#10;
   AboutText = 'VgaSoft Terminal 2.0 alpha'+CRLF+CRLF+
-              'Copyright '#169' VgaSoft, 2013-2018'+CRLF+
+              'Copyright '#169' VgaSoft, 2013-2020'+CRLF+
               'vgasoft@gmail.com';
   AboutIcon = 'MAINICON';
   BitRatesList: array[0..15] of TSettingsItem = (
@@ -167,6 +171,7 @@ const
   IDSNowhere = 1020;
   IDSIniFile = 1021;
   IDSRegistry = 1022;
+  IDPlugins = 1050;
   MenuLogTemplate: array[0..8] of PChar = ('1001',
     '&Select All'#9'Ctrl-A',
     '&Copy'#9'Ctrl-C',
@@ -197,6 +202,13 @@ var
     (fVirt: FCONTROL or FVIRTKEY; Key: Ord('S'); Cmd: IDDumpFile),
     (fVirt: FCONTROL or FVIRTKEY; Key: Ord('N'); Cmd: IDClear),
     (fVirt: FVIRTKEY; Key: VK_F1; Cmd: IDAbout));
+
+function GetSettings: TSettings;
+begin
+  Result := TSettings.Create(AppName);
+end;
+
+{ TMainForm }
 
 constructor TMainForm.Create;
 begin
@@ -269,6 +281,8 @@ begin
   BtnTogglePanels.OnClick := BtnTogglePanelsClick;
   MenuLog := TMenu.Create(Self, false, MenuLogTemplate);
   MenuSettings := TMenu.Create(Self, false, MenuSettingsTemplate);
+  MenuPlugins := TMenu.Create(Self, false, ['1050']);
+  InsertMenu(MenuLog.Handle, IDAbout, MF_BYCOMMAND or MF_POPUP, MenuPlugins.Handle, '&Plugins');
   InsertMenu(MenuLog.Handle, IDAbout, MF_BYCOMMAND or MF_POPUP, MenuSettings.Handle, 'S&tore settings');
   AccelTable := CreateAcceleratorTable(Accels, Length(Accels));
   RecvTimer := TTimer.CreateEx(50, false);
@@ -282,6 +296,8 @@ begin
   CBPortDropDown(CBPort);
   if CBPort.ItemCount > 0 then
     CBPort.ItemIndex := 0;
+  Plugins := TPluginsManager.Create(Handle);
+  Plugins.LoadPlugins;
   LoadSettings;
   FillComboBox(CBBitRate, BitRatesList, DefaultBitRate);
   FillComboBox(CBDataBits, DataBitsList, DefaultDataBits);
@@ -385,13 +401,13 @@ begin
     if not Assigned(COMPort) then
     begin
       SetLogUpdateState(true);
-      ReceiveConverter.Convert(TransmitConvert(S, TTextMode(GetComboValue(CBSendMode))));
+      ReceiveConverter.Convert(Plugins.OnReceive(Plugins.OnSend(TransmitConvert(S, TTextMode(GetComboValue(CBSendMode))))));
       ReceiveConverter.Flush;
       SetLogUpdateState(false);
     end
     else
     {$ENDIF}
-    COMPort.Write(TransmitConvert(S, TTextMode(GetComboValue(CBSendMode))));
+    COMPort.Write(Plugins.OnSend(TransmitConvert(S, TTextMode(GetComboValue(CBSendMode)))));
     if Trim(S) = '' then Exit;
     List := TStringList.Create;
     for i := 0 to CBSend.ItemCount - 1 do
@@ -428,6 +444,7 @@ begin
   ReceiveConverter.Free;
   FDumpFile.Free;
   SaveSettings;
+  Plugins.Free;
 end;
 
 function TMainForm.FormProcessMsg(var Msg: TMsg): Boolean;
@@ -546,7 +563,6 @@ end;
 procedure TMainForm.ReceiveConverterConvert(Sender: TObject; const Data: string);
 begin
   TermLog.Add(Data, CaptionRecv, clMaroon, Now);
-  FLogUpdated := true;
 end;
 
 procedure TMainForm.RecvTimerTimer(Sender: TObject);
@@ -561,7 +577,7 @@ begin
     SetLength(Buffer, BufferSize);
     SetLength(Buffer, COMPort.Read(Buffer[1], BufferSize));
     if Assigned(FDumpFile) then FDumpFile.Write(Buffer[1], Length(Buffer));
-    ReceiveConverter.Convert(Buffer);
+    ReceiveConverter.Convert(Plugins.OnReceive(Buffer));
   until Length(Buffer) < BufferSize;
   if Length(Buffer) = 0 then ReceiveConverter.Flush;
   SetLogUpdateState(false);
@@ -574,6 +590,7 @@ const
   DumpName: array[Boolean] of PChar = ('&Dump to file...'#9'Ctrl-S', 'S&top dumping'#9'Ctrl-S');
 var
   Settings: TSettings;
+  i: Integer;
 begin
   if Button <> mbRight then Exit;
   Settings := GetSettings;
@@ -583,6 +600,12 @@ begin
     CheckMenuItem(MenuSettings.Handle, IDSRegistry, MenuCheck[Settings.Source = ssRegistry] or MF_BYCOMMAND);
     EnableMenuItem(MenuLog.Handle, IDSendFile, MenuEnable[Assigned(COMPort)] or MF_BYCOMMAND);
     ModifyMenu(MenuLog.Handle, IDDumpFile, MF_BYCOMMAND or MF_STRING, IDDumpFile, DumpName[Assigned(FDumpFile)]);
+    while GetMenuItemCount(MenuPlugins.Handle) > 0 do
+      DeleteMenu(MenuPlugins.Handle, 0, MF_BYPOSITION);
+    for i := 0 to Plugins.Count - 1 do
+      AppendMenu(MenuPlugins.Handle, MF_STRING or MenuCheck[Plugins.Enabled[i]], IDPlugins + i, PChar(Plugins.Name[i]));
+    if Plugins.Count = 0 then
+      AppendMenu(MenuPlugins.Handle, MF_STRING or MF_GRAYED, IDPlugins, 'None');
     MenuLog.Popup(Left + X, Top + Y);
   finally
     FreeAndNil(Settings);
@@ -636,13 +659,10 @@ begin
   if IsUpdating = FLogUpdateState then Exit;
   FLogUpdateState := IsUpdating;
   if IsUpdating then
-  begin
-    TermLog.BeginUpdate;
-    FLogUpdated := false;
-  end
+    TermLog.BeginUpdate
   else begin
     TermLog.EndUpdate;
-    if FLogUpdated then TermLog.Refresh;
+    TermLog.Refresh;
   end;
 end;
 
@@ -672,11 +692,6 @@ begin
     if Result = -1 then Result := StrToInt(Combo.TagEx);
   end
     else Result := 0;
-end;
-
-function TMainForm.GetSettings: TSettings;
-begin
-  Result := TSettings.Create(AppName);
 end;
 
 procedure TMainForm.LoadSettings;
@@ -709,6 +724,7 @@ begin
         CBPort.ItemIndex := i;
         Break;
       end;
+    Plugins.LoadSettings(Settings);
   finally
     FreeAndNil(Settings);
   end;
@@ -737,6 +753,7 @@ begin
     Settings.EraseSection(IniSectHistory);
     for i := 0 to CBSend.ItemCount - 1 do
       Settings.WriteString(IniSectHistory, IntToStr(i), CBSend.Items[i]);
+    Plugins.SaveSettings(Settings);
   finally
     FreeAndNil(Settings);
   end;
@@ -755,6 +772,9 @@ begin
       IDSNowhere: MIStoreSettingsClick(MenuSettings, ssNone);
       IDSIniFile: MIStoreSettingsClick(MenuSettings, ssIni);
       IDSRegistry: MIStoreSettingsClick(MenuSettings, ssRegistry);
+      else
+        if (Msg.ItemID >= IDPlugins) and (Msg.ItemID < IDPlugins + Plugins.Count) then
+          Plugins.Configure(Msg.ItemID - IDPlugins);
     end;
 end;
 
