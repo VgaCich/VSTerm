@@ -4,7 +4,7 @@
 #include <Windows.h>
 
 enum {
-  TerminalAPIVersion = 1,
+  TerminalAPIVersion = 2,
   PluginAPIVersion = 1
 };
 
@@ -30,6 +30,7 @@ typedef struct Terminal { //API, provided by host
   TBuffer* __stdcall (*GetOption)(const char *Section, const char *Key); //Get option from host's settings store
   void __stdcall (*SetOption)(const char *Section, const char *Key, const char *Value); //Write option to host's settings store
   void __stdcall (*AddToLog)(const char *Text, const char *Caption, int Color); //Write line to terminal log
+  int __stdcall (*Send)(const char Data, int Len); //Send data to COM-port
 } TTerminal;
 
 TPlugin* __stdcall CreateVSTermPlugin(TTerminal *Terminal);

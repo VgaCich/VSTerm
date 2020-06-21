@@ -111,7 +111,7 @@ AutoIncBuild=1
 MajorVer=2
 MinorVer=0
 Release=0
-Build=33
+Build=34
 Debug=0
 PreRelease=0
 Special=0
@@ -122,7 +122,7 @@ CodePage=1252
 [Version Info Keys]
 CompanyName=VgaSoft
 FileDescription=VS Terminal
-FileVersion=2.0.0.33
+FileVersion=2.0.0.34
 InternalName=VSTerm
 LegalCopyright=(c) VgaSoft, 2013-2020
 LegalTrademarks=

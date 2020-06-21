@@ -83,6 +83,7 @@ type
     procedure WMSetFocus(var Msg: TWMSetFocus); message WM_SETFOCUS;
   public
     constructor Create;
+    function Send(const Data; Count: Integer): Integer;
   end;
 
 var
@@ -306,6 +307,13 @@ begin
   FillComboBox(CBFlowCtrl, FlowCtrlList, DefaultFlowCtrl);
   FillComboBox(CBSendMode, SendTextModeList, DefaultSendTextMode);
   FillComboBox(CBRecvMode, RecvTextModeList, DefaultRecvTextMode);
+end;
+
+function TMainForm.Send(const Data; Count: Integer): Integer;
+begin
+  Result := 0;
+  if Assigned(COMPort) then
+    Result := COMPort.Write(Data, Count);
 end;
 
 procedure TMainForm.BtnConnectClick(Sender: TObject);

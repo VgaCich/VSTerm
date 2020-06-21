@@ -3,7 +3,7 @@ unit PluginAPI;
 interface
 
 const
-  TerminalAPIVersion = 1;
+  TerminalAPIVersion = 2;
   PluginAPIVersion = 1;
   CreateVSTermPluginFuncName = 'CreateVSTermPlugin';
 
@@ -23,6 +23,7 @@ type
     GetOption: function(const Section, Key: PChar): PBuffer; stdcall; //Get option from host's settings store
     SetOption: procedure(const Section, Key, Value: PChar); stdcall; //Write option to host's settings store
     AddToLog: procedure(const Text, Caption: PChar; Color: Integer); stdcall; //Write line to terminal log
+    Send: function(const Data: PChar; Len: Integer): Integer; stdcall; //Send data to COM-port
   end;
   TPlugin = record //Plugin instance
     Version: Integer; //Set to PluginAPIVersion

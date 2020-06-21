@@ -105,6 +105,13 @@ begin
   FormMain.TermLog.Refresh;
 end;
 
+function Send(const Data: PChar; Len: Integer): Integer; stdcall;
+begin
+  Result := 0;
+  if Assigned(FormMain) then
+    Result := FormMain.Send(Data^, Len);
+end;
+
 { TPluginsManager }
 
 constructor TPluginsManager.Create(Handle: THandle);
@@ -115,6 +122,7 @@ begin
   FTerminal.GetOption := GetOption;
   FTerminal.SetOption := SetOption;
   FTerminal.AddToLog := AddToLog;
+  FTerminal.Send := Send;
   PluginsManager := Self;
 end;
 
@@ -156,7 +164,7 @@ begin
     begin
       Plugin := Plug;
       LibInst := Lib;
-      Enabled := false; //TODO: Read from settings?
+      Enabled := false;
     end;
     Lib := 0;
   finally
